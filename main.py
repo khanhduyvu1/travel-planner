@@ -2,8 +2,9 @@ import os
 from dotenv import load_dotenv
 
 from flights import fetch_flights
+from AI_model import get_client
 from planner import (
-    get_client, collect_request, resolve_airport_code,
+    collect_request, resolve_airport_code,
     get_recommendations, render_text, save_text, save_json,
 )
 
@@ -43,7 +44,7 @@ def main() -> None:
 
     save_text("recommendations.txt", render_text(results))
     save_json("recommendations.json", results)
-    print("Done. See flights.txt, flights.json, recommendations.txt, recommendations.json")
+    print("Done. See output/flights.txt, output/flights.json, output/recommendations.txt, output/recommendations.json")
 
 
 if __name__ == "__main__":

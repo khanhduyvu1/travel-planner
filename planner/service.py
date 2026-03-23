@@ -1,7 +1,9 @@
 import json
-from .prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 
-MODEL_NAME = "openai/gpt-4.1"
+from azure.ai.inference.models import SystemMessage, UserMessage
+
+from config import MODEL_NAME
+from .prompts import SYSTEM_PROMPT, USER_PROMPT_TEMPLATE
 
 
 def collect_request() -> dict:
@@ -18,21 +20,27 @@ def collect_request() -> dict:
     }
 
 
+_airport_cache: dict[str, str] = {}
+
+
 def resolve_airport_code(client, city: str) -> str:
     """Ask the LLM for the main IATA airport code of a city."""
-    resp = client.chat.completions.create(
+    key = city.strip().lower()
+    if key in _airport_cache:
+        return _airport_cache[key]
+
+    resp = client.complete(
         model=MODEL_NAME,
         temperature=0,
         max_tokens=10,
         messages=[
-            {
-                "role": "system",
-                "content": "Reply with ONLY the 3-letter IATA airport code for the main international airport of the given city. No explanation, no punctuation, just the code.",
-            },
-            {"role": "user", "content": city},
+            SystemMessage("Reply with ONLY the 3-letter IATA airport code for the main international airport of the given city. No explanation, no punctuation, just the code."),
+            UserMessage(city),
         ],
     )
-    return resp.choices[0].message.content.strip().upper()[:3]
+    code = resp.choices[0].message.content.strip().upper()[:3]
+    _airport_cache[key] = code
+    return code
 
 
 def _parse_json(text: str) -> dict:
@@ -68,13 +76,13 @@ def get_recommendations(
         flight_section=flight_section,
     )
 
-    resp = client.chat.completions.create(
+    resp = client.complete(
         model=MODEL_NAME,
         temperature=0.7,
         top_p=1.0,
         messages=[
-            {"role": "system", "content": SYSTEM_PROMPT},
-            {"role": "user", "content": user_prompt},
+            SystemMessage(SYSTEM_PROMPT),
+            UserMessage(user_prompt),
         ],
     )
 

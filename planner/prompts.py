@@ -14,11 +14,12 @@ Budget for activities in the city (excludes flights): {estimated_budget}
 {flight_section}
 
 Task:
-1. From the numbered flight list above, you MUST pick the top 3 best flights and explain briefly why each is a good choice
+1. If flight data is provided above, pick the top 3 best flights and explain briefly why each is a good choice
    (e.g. cheapest, fastest, best airline, fewest stops).
    The budget above is only for in-city activities and does NOT apply to flights.
    Include the flight number from the list (1, 2, 3, ...) as "flight_index".
-   Only set recommended_flights to an empty list if there is NO flight data at all.
+   Copy the exact summary from the flight list -- do NOT make up or modify airline names, routes, durations, or prices.
+   If NO flight data is provided above, set recommended_flights to an EMPTY list []. NEVER invent flights.
 
 2. Recommend 5 specific locations/areas within {destination} that the traveler should visit.
    For each location explain why it's worth visiting and what to do there.

@@ -1,4 +1,4 @@
-from .client import get_client
+from AI_model import get_client
 from .service import collect_request, get_recommendations, resolve_airport_code
 from .output import render_text, save_text, save_json
 

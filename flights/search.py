@@ -27,7 +27,7 @@ def search_flights(
     if return_date:
         params["return_date"] = return_date
     if max_stops is not None:
-        params["stops"] = str(max_stops)
+        params["stops"] = str(max_stops + 1)
     params["deep_search"] = "true"
 
     resp = requests.get(SERPAPI_URL, params=params, timeout=60)

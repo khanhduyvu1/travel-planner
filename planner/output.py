@@ -1,4 +1,7 @@
 import json
+import os
+
+OUTPUT_DIR = os.path.join(os.path.dirname(os.path.dirname(__file__)), "output")
 
 
 def render_text(results: dict) -> str:
@@ -36,11 +39,13 @@ def render_text(results: dict) -> str:
     return "\n".join(lines)
 
 
-def save_text(path: str, text: str) -> None:
-    with open(path, "w", encoding="utf-8") as f:
+def save_text(filename: str, text: str) -> None:
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    with open(os.path.join(OUTPUT_DIR, filename), "w", encoding="utf-8") as f:
         f.write(text)
 
 
-def save_json(path: str, data: dict) -> None:
-    with open(path, "w", encoding="utf-8") as f:
+def save_json(filename: str, data: dict) -> None:
+    os.makedirs(OUTPUT_DIR, exist_ok=True)
+    with open(os.path.join(OUTPUT_DIR, filename), "w", encoding="utf-8") as f:
         json.dump(data, f, ensure_ascii=False, indent=2)

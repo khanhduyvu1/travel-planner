@@ -25,7 +25,4 @@ Desktop.ini
 .DS_Store
 
 # Project output files
-flights.json
-flights.txt
-recommendations.json
-recommendations.txt
+output/
