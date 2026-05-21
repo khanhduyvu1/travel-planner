@@ -41,6 +41,7 @@ def main() -> None:
 
     if google_flights_url:
         results["all_flights_link"] = google_flights_url
+    results["model_info"] = client.info()
 
     save_text("recommendations.txt", render_text(results))
     save_json("recommendations.json", results)

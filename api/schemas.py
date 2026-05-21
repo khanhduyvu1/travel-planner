@@ -20,6 +20,7 @@ class RecommendationRequest(BaseModel):
     return_date: str | None = Field(None, pattern=r"^\d{4}-\d{2}-\d{2}$", examples=["2026-06-30"])
     estimated_budget: str = Field(..., min_length=1, examples=["1000 USD"])
     max_stops: int | None = Field(None, ge=0, le=2)
+    model_mode: str = Field("open", pattern=r"^(local|open)$", examples=["open"])
 
 
 # --- Response schemas ---
@@ -60,9 +61,19 @@ class RecommendedFlight(BaseModel):
 
 class Location(BaseModel):
     name: str
+    details: str = ""
     why: str
     things_to_do: list[str] = []
     suggested_days: int = 1
+    map_url: str | None = None
+
+
+class ModelInfo(BaseModel):
+    provider: str = ""
+    backend: str = ""
+    model: str = ""
+    api_base: str | None = None
+    timeout_seconds: int | None = None
 
 
 class RecommendationResponse(BaseModel):
@@ -70,7 +81,9 @@ class RecommendationResponse(BaseModel):
     arrival_code: str
     destination: str
     google_flights_url: str = ""
+    flights: list[FlightOption] = []
     recommended_flights: list[RecommendedFlight] = []
     locations: list[Location] = []
     total_estimated_budget: int | float = 0
+    model_info: ModelInfo | None = None
     recommendations_text: str = ""

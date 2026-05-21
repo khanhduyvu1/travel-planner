@@ -21,8 +21,10 @@ Task:
    Copy the exact summary from the flight list -- do NOT make up or modify airline names, routes, durations, or prices.
    If NO flight data is provided above, set recommended_flights to an EMPTY list []. NEVER invent flights.
 
-2. Recommend 5 specific locations/areas within {destination} that the traveler should visit.
-   For each location explain why it's worth visiting and what to do there.
+2. Recommend exactly 8 specific locations/areas within {destination} that the traveler should visit.
+  Prioritize well-known landmarks, museums, neighborhoods, parks, temples, markets, waterfronts, or historic sites.
+  For each location, provide "details" with 2-4 specific sentences about what the place is like, its cultural or historical context, and what kind of traveler would enjoy it.
+  Also explain why it's worth visiting and what to do there.
 
 Return JSON with this exact shape:
 {{
@@ -37,6 +39,7 @@ Return JSON with this exact shape:
   "locations": [
     {{
       "name": "specific place or area name",
+      "details": "2-4 specific sentences with context, atmosphere, history, or practical notes about this location",
       "why": "why this place is worth visiting",
       "things_to_do": ["activity 1", "activity 2", "activity 3"],
       "suggested_days": 1
@@ -44,4 +47,6 @@ Return JSON with this exact shape:
   ],
   "total_estimated_budget": 0
 }}
+
+The "locations" array must contain exactly 8 objects.
 """.strip()

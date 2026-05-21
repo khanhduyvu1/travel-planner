@@ -5,7 +5,7 @@ from fastapi import APIRouter, HTTPException
 
 from flights import fetch_flights
 from AI_model import get_client
-from planner import resolve_airport_code, get_recommendations, render_text, save_text
+from planner import resolve_airport_code, get_recommendations, render_text, save_json, save_text
 
 load_dotenv()
 
@@ -44,7 +44,7 @@ def search_flights_endpoint(req: FlightSearchRequest):
 @router.post("/recommendations", response_model=RecommendationResponse)
 def get_recs(req: RecommendationRequest):
     """Full pipeline: resolve airports (AI) + search flights (SerpAPI) + recommendations (AI)."""
-    client = get_client()
+    client = get_client(req.model_mode)
 
     try:
         departure_code = resolve_airport_code(client, req.start_city)
@@ -63,6 +63,8 @@ def get_recs(req: RecommendationRequest):
                 serpapi_key, departure_code, arrival_code,
                 req.start_date, req.return_date, req.max_stops,
             )
+            save_json("flights.json", flights)
+            save_text("flights.txt", flight_summary)
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Flight search failed: {exc}")
 
@@ -84,6 +86,7 @@ def get_recs(req: RecommendationRequest):
 
     if google_flights_url:
         recs["all_flights_link"] = google_flights_url
+    recs["model_info"] = client.info()
 
     recommendations_text = render_text(recs)
     save_text("recommendations.txt", recommendations_text)
@@ -93,8 +96,10 @@ def get_recs(req: RecommendationRequest):
         arrival_code=arrival_code,
         destination=recs.get("destination", req.destination),
         google_flights_url=google_flights_url,
+        flights=flights,
         recommended_flights=recommended_flights,
         locations=recs.get("locations", []),
         total_estimated_budget=recs.get("total_estimated_budget", 0),
+        model_info=recs.get("model_info"),
         recommendations_text=recommendations_text,
     )

@@ -30,11 +30,33 @@ def render_text(results: dict) -> str:
         for i, loc in enumerate(locations, 1):
             days = loc.get("suggested_days", "?")
             lines.append(f"  {i}. {loc.get('name', '?')} ({days} day{'s' if days != 1 else ''})")
+            map_url = loc.get("map_url")
+            if map_url:
+                lines.append(f"     Map: {map_url}")
+            details = loc.get("details")
+            if details:
+                lines.append(f"     Details: {details}")
             lines.append(f"     Why: {loc.get('why', '')}")
             things = loc.get("things_to_do", [])
             for t in things:
                 lines.append(f"       - {t}")
             lines.append("")
+
+    model_info = results.get("model_info", {})
+    if model_info:
+        lines.append("=" * 50)
+        lines.append("MODEL USED")
+        lines.append("=" * 50)
+        lines.append(f"  Provider: {model_info.get('provider', '?')}")
+        lines.append(f"  Backend: {model_info.get('backend', '?')}")
+        lines.append(f"  Model: {model_info.get('model', '?')}")
+        api_base = model_info.get("api_base")
+        if api_base:
+            lines.append(f"  API base: {api_base}")
+        timeout = model_info.get("timeout_seconds")
+        if timeout:
+            lines.append(f"  Timeout: {timeout}s")
+        lines.append("")
 
     return "\n".join(lines)
 
