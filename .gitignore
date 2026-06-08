@@ -26,3 +26,8 @@ Desktop.ini
 
 # Project output files
 output/
+backend/output/
+
+# Runtime RAG cache
+backend/knowledge_cache/*.json
+!backend/knowledge_cache/.gitkeep

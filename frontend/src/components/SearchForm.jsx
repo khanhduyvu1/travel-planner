@@ -7,11 +7,6 @@ const STOP_OPTIONS = [
   { value: "2", label: "2 stops" },
 ];
 
-const MODEL_MODES = [
-  { value: "open", label: "Open" },
-  { value: "local", label: "Local" },
-];
-
 export default function SearchForm({ onSubmit, loading }) {
   const [form, setForm] = useState({
     startCity: "",
@@ -20,7 +15,6 @@ export default function SearchForm({ onSubmit, loading }) {
     returnDate: "",
     estimatedBudget: "",
     maxStops: "",
-    modelMode: "open",
   });
 
   function handleChange(e) {
@@ -44,31 +38,6 @@ export default function SearchForm({ onSubmit, loading }) {
         <div className="text-center mb-2">
           <h1 className="text-3xl font-bold text-gray-900">Travel Planner</h1>
           <p className="text-gray-500 mt-1">Plan your next trip with AI</p>
-        </div>
-
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">Model source</label>
-          <div className="grid grid-cols-2 rounded-lg border border-gray-300 bg-gray-50 p-1">
-            {MODEL_MODES.map((mode) => {
-              const selected = form.modelMode === mode.value;
-
-              return (
-                <button
-                  key={mode.value}
-                  type="button"
-                  onClick={() => setForm({ ...form, modelMode: mode.value })}
-                  className={`rounded-md px-3 py-2 text-sm font-semibold transition-colors ${
-                    selected
-                      ? "bg-indigo-600 text-white shadow-sm"
-                      : "text-gray-600 hover:bg-white hover:text-gray-900"
-                  }`}
-                  aria-pressed={selected}
-                >
-                  {mode.label}
-                </button>
-              );
-            })}
-          </div>
         </div>
 
         <div className="grid grid-cols-2 gap-4">
@@ -127,8 +96,7 @@ export default function SearchForm({ onSubmit, loading }) {
               name="estimatedBudget"
               value={form.estimatedBudget}
               onChange={handleChange}
-              placeholder="e.g. 1000 USD"
-              required
+              placeholder="Optional"
               className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-400"
             />
           </div>

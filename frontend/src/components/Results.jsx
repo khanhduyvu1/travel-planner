@@ -14,6 +14,8 @@ function FlightCard({ flight, index }) {
 
 function LocationCard({ location, index }) {
   const thingsToDo = location.things_to_do || [];
+  const suggestedDays = location.suggested_days ?? 1;
+  const dayLabel = suggestedDays === 1 ? "day" : "days";
 
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
@@ -25,7 +27,7 @@ function LocationCard({ location, index }) {
           <h3 className="font-semibold text-gray-900">
             {location.name}
             <span className="text-xs font-normal text-gray-400 ml-2">
-              {location.suggested_days} day{location.suggested_days !== 1 ? "s" : ""}
+              {suggestedDays} {dayLabel}
             </span>
           </h3>
           {location.details && (
@@ -58,9 +60,101 @@ function LocationCard({ location, index }) {
   );
 }
 
+function HotelCard({ hotel, index }) {
+  const reviewSummary = hotel.review_summary || [];
+  const nearbySummary = hotel.nearby_summary || [];
+  const services = hotel.services || [];
+  const ratingText = hotel.rating
+    ? `${hotel.rating}/5${hotel.reviews ? ` from ${hotel.reviews} reviews` : ""}`
+    : "";
+
+  return (
+    <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
+      <div className="p-4">
+        <div className="flex items-start gap-3">
+          <span className="text-xs font-bold bg-amber-100 text-amber-700 px-2 py-0.5 rounded-full shrink-0">
+            #{index + 1}
+          </span>
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-baseline gap-x-2 gap-y-1">
+              <h3 className="font-semibold text-gray-900">{hotel.name}</h3>
+              {hotel.hotel_class && (
+                <span className="text-xs text-gray-400">{hotel.hotel_class}</span>
+              )}
+            </div>
+
+            <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-xs text-gray-500">
+              {ratingText && <span>{ratingText}</span>}
+              {hotel.location_rating && <span>Location {hotel.location_rating}/5</span>}
+              {hotel.price_per_night && <span>{hotel.price_per_night} / night</span>}
+              {hotel.total_price && <span>{hotel.total_price} total</span>}
+            </div>
+
+            {hotel.address && (
+              <p className="text-xs text-gray-500 mt-2">{hotel.address}</p>
+            )}
+            {hotel.summary && (
+              <p className="text-sm text-gray-800 mt-2 font-medium">{hotel.summary}</p>
+            )}
+            <p className="text-sm text-gray-600 mt-2">{hotel.quality_reason}</p>
+            <p className="text-sm text-gray-600 mt-1">{hotel.proximity_reason}</p>
+
+            {nearbySummary.length > 0 && (
+              <ul className="mt-3 space-y-1">
+                {nearbySummary.slice(0, 3).map((note, i) => (
+                  <li key={i} className="text-xs text-gray-500">
+                    Nearby: {note}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {reviewSummary.length > 0 && (
+              <ul className="mt-3 space-y-1">
+                {reviewSummary.slice(0, 3).map((note, i) => (
+                  <li key={i} className="text-xs text-gray-500">
+                    {note}
+                  </li>
+                ))}
+              </ul>
+            )}
+
+            {services.length > 0 && (
+              <div className="mt-3 flex flex-wrap gap-1.5">
+                {services.map((service, i) => (
+                  <span
+                    key={i}
+                    className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-600"
+                  >
+                    {service}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className="mt-3 flex flex-wrap gap-4 text-sm font-medium">
+              {hotel.property_link && (
+                <a
+                  href={hotel.property_link}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-indigo-600 hover:text-indigo-800"
+                >
+                  View details
+                </a>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function Results({ data, onBack }) {
   const generatedModel = data.model_info?.model;
   const generatedProvider = data.model_info?.provider;
+  const recommendedHotels = data.recommended_hotels || [];
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-100 px-4 py-8">
@@ -90,6 +184,19 @@ export default function Results({ data, onBack }) {
           </button>
         </div>
 
+        {data.locations.length > 0 && (
+          <section>
+            <h2 className="text-lg font-semibold text-gray-800 mb-3">
+              Places to Visit
+            </h2>
+            <div className="grid gap-3">
+              {data.locations.map((loc, i) => (
+                <LocationCard key={i} location={loc} index={i} />
+              ))}
+            </div>
+          </section>
+        )}
+
         {data.recommended_flights.length > 0 && (
           <section>
             <h2 className="text-lg font-semibold text-gray-800 mb-3">
@@ -113,14 +220,14 @@ export default function Results({ data, onBack }) {
           </section>
         )}
 
-        {data.locations.length > 0 && (
+        {recommendedHotels.length > 0 && (
           <section>
             <h2 className="text-lg font-semibold text-gray-800 mb-3">
-              Places to Visit
+              Recommended Hotels
             </h2>
             <div className="grid gap-3">
-              {data.locations.map((loc, i) => (
-                <LocationCard key={i} location={loc} index={i} />
+              {recommendedHotels.map((hotel, i) => (
+                <HotelCard key={i} hotel={hotel} index={i} />
               ))}
             </div>
           </section>
