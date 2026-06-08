@@ -3,9 +3,18 @@ import os
 from dotenv import load_dotenv
 from fastapi import APIRouter, HTTPException
 
-from flights import fetch_flights
-from AI_model import get_client
-from planner import resolve_airport_code, get_recommendations, render_text, save_json, save_text
+from backend.flights import fetch_flights
+from backend.hotels import fetch_hotels
+from backend.AI_model import LLMRateLimitError, get_client
+from backend.rag import learn_from_locations, retrieve_context
+from backend.planner import (
+    get_hotel_recommendations,
+    resolve_airport_code,
+    get_recommendations,
+    render_text,
+    save_json,
+    save_text,
+)
 
 load_dotenv()
 
@@ -44,17 +53,21 @@ def search_flights_endpoint(req: FlightSearchRequest):
 @router.post("/recommendations", response_model=RecommendationResponse)
 def get_recs(req: RecommendationRequest):
     """Full pipeline: resolve airports (AI) + search flights (SerpAPI) + recommendations (AI)."""
-    client = get_client(req.model_mode)
+    client = get_client()
 
     try:
         departure_code = resolve_airport_code(client, req.start_city)
         arrival_code = resolve_airport_code(client, req.destination)
+    except LLMRateLimitError as exc:
+        raise HTTPException(status_code=429, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Failed to resolve airport codes: {exc}")
 
     flights = []
     flight_summary = ""
     google_flights_url = ""
+    hotels = []
+    hotel_summary = ""
     serpapi_key = os.getenv("SERPAPI_KEY")
 
     if serpapi_key:
@@ -68,6 +81,9 @@ def get_recs(req: RecommendationRequest):
         except Exception as exc:
             raise HTTPException(status_code=502, detail=f"Flight search failed: {exc}")
 
+    retrieved_context = retrieve_context(req.destination)
+    save_text("rag_context.txt", retrieved_context)
+
     try:
         recs = get_recommendations(
             client,
@@ -76,14 +92,48 @@ def get_recs(req: RecommendationRequest):
             return_date=req.return_date,
             estimated_budget=req.estimated_budget,
             flight_data=flight_summary,
+            retrieved_context=retrieved_context,
         )
+    except LLMRateLimitError as exc:
+        raise HTTPException(status_code=429, detail=str(exc))
     except Exception as exc:
         raise HTTPException(status_code=502, detail=f"Recommendation generation failed: {exc}")
+
+    learn_from_locations(req.destination, recs.get("locations", []))
+
+    recommended_hotels = []
+    if serpapi_key:
+        try:
+            hotels, hotel_summary = fetch_hotels(
+                serpapi_key,
+                req.destination,
+                req.start_date,
+                req.return_date,
+            )
+            save_json("hotels.json", hotels)
+            save_text("hotels.txt", hotel_summary)
+        except Exception:
+            hotels = []
+            hotel_summary = ""
+
+    if hotels:
+        try:
+            recommended_hotels = get_hotel_recommendations(
+                client,
+                destination=req.destination,
+                locations=recs.get("locations", []),
+                hotels=hotels,
+            )
+        except Exception:
+            recommended_hotels = []
 
     recommended_flights = recs.get("recommended_flights", [])
     if not flight_summary:
         recommended_flights = []
 
+    recs["hotels"] = hotels
+    recs["recommended_hotels"] = recommended_hotels
+    recs["rag_context_used"] = retrieved_context
     if google_flights_url:
         recs["all_flights_link"] = google_flights_url
     recs["model_info"] = client.info()
@@ -98,8 +148,11 @@ def get_recs(req: RecommendationRequest):
         google_flights_url=google_flights_url,
         flights=flights,
         recommended_flights=recommended_flights,
+        hotels=hotels,
+        recommended_hotels=recommended_hotels,
         locations=recs.get("locations", []),
         total_estimated_budget=recs.get("total_estimated_budget", 0),
+        rag_context_used=retrieved_context,
         model_info=recs.get("model_info"),
         recommendations_text=recommendations_text,
     )

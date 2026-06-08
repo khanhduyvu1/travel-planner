@@ -28,7 +28,6 @@ export async function getRecommendations({
   returnDate,
   estimatedBudget,
   maxStops,
-  modelMode,
 }) {
   const res = await fetch(`${API_BASE}/recommendations`, {
     method: "POST",
@@ -38,9 +37,8 @@ export async function getRecommendations({
       destination: destination,
       start_date: startDate,
       return_date: returnDate || null,
-      estimated_budget: estimatedBudget,
+      estimated_budget: estimatedBudget?.trim() || null,
       max_stops: maxStops ?? null,
-      model_mode: modelMode,
     }),
   });
 
