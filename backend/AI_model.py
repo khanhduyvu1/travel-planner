@@ -50,8 +50,11 @@ class LLMClient:
         self.api_base = api_base
         self.api_key = api_key
 
-    def _is_gemini(self) -> bool:
-        return self.provider in ("gemini", "google") or self.model.lower().startswith("gemini")
+    # Providers that don't support the temperature parameter
+    _SKIP_TEMPERATURE_PROVIDERS = frozenset({"gemini", "google"})
+
+    def _skip_temperature(self) -> bool:
+        return self.provider in self._SKIP_TEMPERATURE_PROVIDERS or self.model.lower().startswith("gemini")
 
     @staticmethod
     def _model_name(provider: str, model: str) -> str:
@@ -98,7 +101,7 @@ class LLMClient:
         max_tokens: int | None,
         json_format: bool,
     ) -> str:
-        is_gemini = self._is_gemini()
+        skip_temp = self._skip_temperature()
         kwargs: dict[str, Any] = {
             "model": self._model_name(self.provider, self.model),
             "messages": [
@@ -107,13 +110,14 @@ class LLMClient:
             ],
             "timeout": self.timeout,
         }
-        if not is_gemini:
+        if not skip_temp:
             kwargs["temperature"] = temperature
 
         if max_tokens is not None:
             kwargs["max_tokens"] = max(max_tokens, int(os.getenv("LLM_MIN_OUTPUT_TOKENS", "64")))
-            if is_gemini:
-                kwargs["reasoning_effort"] = os.getenv("GEMINI_REASONING_EFFORT", "low")
+            reasoning_effort = os.getenv("LLM_REASONING_EFFORT")
+            if reasoning_effort:
+                kwargs["reasoning_effort"] = reasoning_effort
         if json_format:
             kwargs["response_format"] = {"type": "json_object"}
         if self.api_base:
@@ -131,8 +135,9 @@ class LLMClient:
                 int(retry_kwargs.get("max_tokens") or 0),
                 int(os.getenv("LLM_RETRY_OUTPUT_TOKENS", "256")),
             )
-            if is_gemini:
-                retry_kwargs["reasoning_effort"] = os.getenv("GEMINI_REASONING_EFFORT", "low")
+            reasoning_effort = os.getenv("LLM_REASONING_EFFORT")
+            if reasoning_effort:
+                retry_kwargs["reasoning_effort"] = reasoning_effort
             response = cast(Callable[..., Any], completion)(**retry_kwargs)
             content = response.choices[0].message.content
             text = content if isinstance(content, str) else str(content or "")
