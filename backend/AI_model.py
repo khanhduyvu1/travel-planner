@@ -1,14 +1,10 @@
 import os
-import time
-from typing import Any
+from typing import Any, Callable, cast
 
-import requests
-from requests import HTTPError
 from dotenv import load_dotenv
+from litellm import completion
 
 from backend.config import (
-    GITHUB_MODELS_API_VERSION,
-    GITHUB_MODELS_BASE,
     LLM_API_BASE,
     LLM_API_KEY,
     LLM_MODEL,
@@ -19,13 +15,6 @@ from backend.config import (
 
 class LLMRateLimitError(RuntimeError):
     pass
-
-
-def _retry_delay(retry_after: str, attempt: int) -> float:
-    try:
-        return min(float(retry_after), 8.0)
-    except (TypeError, ValueError):
-        return min(2.0 ** attempt, 8.0)
 
 
 KNOWN_PROVIDER_PREFIXES = (
@@ -61,6 +50,9 @@ class LLMClient:
         self.api_base = api_base
         self.api_key = api_key
 
+    def _is_gemini(self) -> bool:
+        return self.provider in ("gemini", "google") or self.model.lower().startswith("gemini")
+
     @staticmethod
     def _model_name(provider: str, model: str) -> str:
         model = model.strip()
@@ -80,15 +72,6 @@ class LLMClient:
         max_tokens: int | None = None,
         json_format: bool = False,
     ) -> str:
-        if self.provider in ("github", "github_models", "global"):
-            return self._complete_github(
-                system=system,
-                user=user,
-                temperature=temperature,
-                max_tokens=max_tokens,
-                json_format=json_format,
-            )
-
         return self._complete_litellm(
             system=system,
             user=user,
@@ -98,91 +81,13 @@ class LLMClient:
         )
 
     def info(self) -> dict[str, str | int | None]:
-        if self.provider in ("github", "github_models", "global"):
-            backend = "github_models"
-            effective_model = self.model
-        else:
-            backend = "litellm"
-            effective_model = self._model_name(self.provider, self.model)
-
         return {
             "provider": self.provider,
-            "backend": backend,
-            "model": effective_model,
+            "backend": "litellm",
+            "model": self._model_name(self.provider, self.model),
             "api_base": self.api_base,
             "timeout_seconds": self.timeout,
         }
-
-    def _complete_github(
-        self,
-        *,
-        system: str,
-        user: str,
-        temperature: float,
-        max_tokens: int | None,
-        json_format: bool,
-    ) -> str:
-        if not self.api_key:
-            raise RuntimeError("GitHub Models requires GITHUB_TOKEN or LLM_API_KEY.")
-
-        payload: dict[str, Any] = {
-            "model": self.model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            "temperature": temperature,
-        }
-        if max_tokens is not None:
-            payload["max_tokens"] = max_tokens
-        if json_format:
-            payload["response_format"] = {"type": "json_object"}
-
-        api_base = self.api_base or GITHUB_MODELS_BASE
-        max_retries = int(os.getenv("LLM_MAX_RETRIES", "2"))
-        retry_after = ""
-
-        for attempt in range(max_retries + 1):
-            resp = requests.post(
-                f"{api_base.rstrip('/')}/chat/completions",
-                headers={
-                    "Accept": "application/vnd.github+json",
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json",
-                    "X-GitHub-Api-Version": GITHUB_MODELS_API_VERSION,
-                },
-                json=payload,
-                timeout=self.timeout,
-            )
-            retry_after = resp.headers.get("Retry-After", "")
-
-            if resp.status_code == 429 and attempt < max_retries:
-                time.sleep(_retry_delay(retry_after, attempt))
-                continue
-
-            try:
-                resp.raise_for_status()
-            except HTTPError as exc:
-                if resp.status_code == 401:
-                    raise RuntimeError(
-                        "GitHub Models returned 401 Unauthorized. Check that GITHUB_TOKEN "
-                        "or LLM_API_KEY is valid, not expired, and has access to GitHub Models."
-                    ) from exc
-                if resp.status_code == 403:
-                    raise RuntimeError(
-                        "GitHub Models returned 403 Forbidden. Your token is valid, but it "
-                        "does not appear to have permission to use GitHub Models."
-                    ) from exc
-                if resp.status_code == 429:
-                    suffix = f" Retry after {retry_after} seconds." if retry_after else ""
-                    raise LLMRateLimitError(
-                        "GitHub Models rate limit reached. Wait a bit and try again, "
-                        "or switch to another LLM provider in .env." + suffix
-                    ) from exc
-                raise
-            break
-
-        return resp.json()["choices"][0]["message"]["content"]
 
     def _complete_litellm(
         self,
@@ -193,18 +98,22 @@ class LLMClient:
         max_tokens: int | None,
         json_format: bool,
     ) -> str:
+        is_gemini = self._is_gemini()
         kwargs: dict[str, Any] = {
             "model": self._model_name(self.provider, self.model),
             "messages": [
                 {"role": "system", "content": system},
                 {"role": "user", "content": user},
             ],
-            "temperature": temperature,
             "timeout": self.timeout,
         }
+        if not is_gemini:
+            kwargs["temperature"] = temperature
 
         if max_tokens is not None:
-            kwargs["max_tokens"] = max_tokens
+            kwargs["max_tokens"] = max(max_tokens, int(os.getenv("LLM_MIN_OUTPUT_TOKENS", "64")))
+            if is_gemini:
+                kwargs["reasoning_effort"] = os.getenv("GEMINI_REASONING_EFFORT", "low")
         if json_format:
             kwargs["response_format"] = {"type": "json_object"}
         if self.api_base:
@@ -212,31 +121,54 @@ class LLMClient:
         if self.api_key:
             kwargs["api_key"] = self.api_key
 
-        from litellm import completion
-
-        response = completion(**kwargs)
+        response = cast(Callable[..., Any], completion)(**kwargs)
         content = response.choices[0].message.content
-        if isinstance(content, str):
-            return content
-        return str(content or "")
+        text = content if isinstance(content, str) else str(content or "")
+
+        if not text.strip():
+            retry_kwargs = dict(kwargs)
+            retry_kwargs["max_tokens"] = max(
+                int(retry_kwargs.get("max_tokens") or 0),
+                int(os.getenv("LLM_RETRY_OUTPUT_TOKENS", "256")),
+            )
+            if is_gemini:
+                retry_kwargs["reasoning_effort"] = os.getenv("GEMINI_REASONING_EFFORT", "low")
+            response = cast(Callable[..., Any], completion)(**retry_kwargs)
+            content = response.choices[0].message.content
+            text = content if isinstance(content, str) else str(content or "")
+
+        return text
+
+
+def _api_key_for_provider(provider_key: str) -> str:
+    generic_key = os.getenv("OPEN_LLM_API_KEY", os.getenv("LLM_API_KEY", ""))
+    if generic_key:
+        return generic_key
+
+    provider_keys = {
+        "gemini": ("GOOGLE_API_KEY", "GEMINI_API_KEY"),
+        "google": ("GOOGLE_API_KEY", "GEMINI_API_KEY"),
+        "openai": ("OPENAI_API_KEY",),
+        "anthropic": ("ANTHROPIC_API_KEY",),
+        "groq": ("GROQ_API_KEY",),
+    }
+
+    for env_name in provider_keys.get(provider_key, ()):
+        api_key = os.getenv(env_name, "")
+        if api_key:
+            return api_key
+    return LLM_API_KEY or ""
 
 
 def get_client() -> LLMClient:
-    load_dotenv()
+    load_dotenv(override=True)
     provider = os.getenv("OPEN_LLM_PROVIDER", os.getenv("LLM_PROVIDER", LLM_PROVIDER))
     model = os.getenv("OPEN_LLM_MODEL", os.getenv("LLM_MODEL", LLM_MODEL))
 
     provider_key = provider.strip().lower()
+    api_base = os.getenv("OPEN_LLM_API_BASE", os.getenv("LLM_API_BASE", LLM_API_BASE or ""))
 
-    if provider_key in ("github", "github_models", "global"):
-        api_base = os.getenv("OPEN_LLM_API_BASE", os.getenv("LLM_API_BASE", GITHUB_MODELS_BASE))
-    else:
-        api_base = os.getenv("OPEN_LLM_API_BASE", os.getenv("LLM_API_BASE", LLM_API_BASE or ""))
-
-    api_key = os.getenv("OPEN_LLM_API_KEY", os.getenv("LLM_API_KEY", os.getenv("GITHUB_TOKEN", LLM_API_KEY or "")))
-
-    if not api_base and provider_key in ("github", "github_models", "global"):
-        api_base = GITHUB_MODELS_BASE
+    api_key = _api_key_for_provider(provider_key)
 
     return LLMClient(
         provider=provider,

@@ -1,10 +1,10 @@
 import os
 
-LLM_PROVIDER = os.getenv("LLM_PROVIDER", "github")
-LLM_MODEL = os.getenv("LLM_MODEL", "openai/gpt-4o-mini")
-LLM_API_BASE = os.getenv("LLM_API_BASE")
-LLM_API_KEY = os.getenv("LLM_API_KEY", os.getenv("GITHUB_TOKEN"))
+LLM_PROVIDER = os.getenv("LLM_PROVIDER", "openai")
+LLM_MODEL = os.getenv("LLM_MODEL", "qwen-plus")
+LLM_API_BASE = os.getenv("LLM_API_BASE", "https://dashscope.aliyuncs.com/compatible-mode/v1")
+LLM_API_KEY = os.getenv(
+    "LLM_API_KEY",
+    os.getenv("DASHSCOPE_API_KEY", os.getenv("OPENAI_API_KEY")),
+)
 LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", "300"))
-
-GITHUB_MODELS_BASE = os.getenv("GITHUB_MODELS_BASE", "https://models.github.ai/inference")
-GITHUB_MODELS_API_VERSION = os.getenv("GITHUB_MODELS_API_VERSION", "2026-03-10")

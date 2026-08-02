@@ -20,7 +20,7 @@ to improve future place recommendations for the same destination.
 ## Prerequisites
 
 - Python 3.12+
-- An open AI provider, such as GitHub Models or a provider supported by [LiteLLM](https://docs.litellm.ai/) like OpenAI, Anthropic, Gemini, or Groq
+- A Google AI Studio Gemini API key, or another provider supported by [LiteLLM](https://docs.litellm.ai/) like OpenAI, Anthropic, or Groq
 - Optional: a [SerpAPI key](https://serpapi.com/) for real flight data
 
 ## Setup
@@ -42,15 +42,24 @@ pip install -r backend/requirements.txt
 Create a `.env` file in the project root:
 
 ```env
-LLM_PROVIDER=github
-LLM_MODEL=openai/gpt-4o-mini
-GITHUB_TOKEN=your_github_token_here
+LLM_PROVIDER=gemini
+LLM_MODEL=gemini-2.5-flash
+GEMINI_API_KEY=your_google_ai_studio_key_here
 LLM_TIMEOUT=300
-LLM_MAX_RETRIES=2
+LLM_MIN_OUTPUT_TOKENS=64
+LLM_RETRY_OUTPUT_TOKENS=256
 SERPAPI_KEY=your_serpapi_key_here
 ```
 
-`LLM_PROVIDER`, `LLM_MODEL`, `LLM_TIMEOUT`, and `LLM_MAX_RETRIES` are optional if you use the defaults above. `SERPAPI_KEY` is optional. Without it, the app skips flight search and only generates destination recommendations.
+`LLM_PROVIDER`, `LLM_MODEL`, `LLM_TIMEOUT`, `LLM_MIN_OUTPUT_TOKENS`, and `LLM_RETRY_OUTPUT_TOKENS` are optional if you use the defaults above. `SERPAPI_KEY` is optional. Without it, the app skips flight search and only generates destination recommendations.
+
+To use a different Google AI Studio model later, change only `LLM_MODEL`:
+
+```env
+LLM_PROVIDER=gemini
+LLM_MODEL=gemini-2.5-pro
+GEMINI_API_KEY=your_google_ai_studio_key_here
+```
 
 To switch providers, change only your `.env` values:
 
@@ -66,13 +75,7 @@ LLM_MODEL=claude-3-5-sonnet-latest
 ANTHROPIC_API_KEY=your_anthropic_key_here
 ```
 
-```env
-LLM_PROVIDER=gemini
-LLM_MODEL=gemini/gemini-1.5-flash
-GEMINI_API_KEY=your_gemini_key_here
-```
-
-You can also set `LLM_MODEL` to a full LiteLLM model name, such as `openai/gpt-4o-mini`, `anthropic/claude-3-5-sonnet-latest`, or `gemini/gemini-1.5-flash`.
+You can also set `LLM_MODEL` to a full LiteLLM model name, such as `openai/gpt-4o-mini`, `anthropic/claude-3-5-sonnet-latest`, or `gemini/gemini-2.5-flash`.
 
 The activity budget field is optional. If you leave it blank, the app asks the model for recommendations without a budget limit.
 
