@@ -135,7 +135,10 @@ def _enrich_hotel_recommendations(results: dict, hotels: list[dict]) -> None:
         if not isinstance(rec, dict):
             continue
         try:
-            hotel_index = int(rec.get("hotel_index"))
+            hotel_index_val = rec.get("hotel_index")
+            if hotel_index_val is None:
+                continue
+            hotel_index = int(hotel_index_val)
         except (TypeError, ValueError):
             continue
         rec["hotel_index"] = hotel_index
@@ -174,7 +177,7 @@ def get_recommendations(
     *,
     destination: str,
     start_date: str,
-    return_date: str,
+    return_date: str | None,
     estimated_budget: str | None,
     flight_data: str = "",
     retrieved_context: str = "",
@@ -200,7 +203,7 @@ def get_recommendations(
         system=SYSTEM_PROMPT,
         user=user_prompt,
         temperature=0.7,
-        max_tokens=2000,
+        max_tokens=4000,
         json_format=True,
     )
     results = _parse_json(text)
@@ -231,7 +234,7 @@ def get_hotel_recommendations(
         system=HOTEL_SYSTEM_PROMPT,
         user=user_prompt,
         temperature=0.4,
-        max_tokens=2000,
+        max_tokens=4000,
         json_format=True,
     )
     results = _parse_json(text)

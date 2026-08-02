@@ -9,6 +9,7 @@ if __package__ in (None, ""):
 
 from backend.flights import fetch_flights
 from backend.hotels import fetch_hotels
+from backend.restaurants import fetch_restaurants
 from backend.AI_model import get_client
 from backend.rag import learn_from_locations, retrieve_context
 from backend.planner import (
@@ -82,6 +83,40 @@ def main() -> None:
         locations=results.get("locations", []),
         hotels=hotels,
     ) if hotels else []
+
+    # Enrich each location with real restaurant data from SerpAPI
+    if serpapi_key:
+        for location in results.get("locations", []):
+            if not isinstance(location, dict):
+                continue
+            loc_name = location.get("name", "")
+            if not loc_name:
+                continue
+            try:
+                rest_data, _ = fetch_restaurants(
+                    serpapi_key,
+                    destination=req["destination"],
+                    location_name=loc_name,
+                )
+                if rest_data:
+                    # Pick top 2 restaurants: one for lunch, one for dinner
+                    lunch_candidate = rest_data[0] if len(rest_data) > 0 else None
+                    dinner_candidate = rest_data[1] if len(rest_data) > 1 else (rest_data[0] if rest_data else None)
+
+                    if lunch_candidate:
+                        location["lunch"] = {
+                            "name": lunch_candidate.get("name", ""),
+                            "cuisine": lunch_candidate.get("type", ""),
+                            "map_url": lunch_candidate.get("map_url", ""),
+                        }
+                    if dinner_candidate:
+                        location["dinner"] = {
+                            "name": dinner_candidate.get("name", ""),
+                            "cuisine": dinner_candidate.get("type", ""),
+                            "map_url": dinner_candidate.get("map_url", ""),
+                        }
+            except Exception:
+                pass
     results["model_info"] = client.info()
 
     save_text("recommendations.txt", render_text(results))

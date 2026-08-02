@@ -101,6 +101,12 @@ class RecommendedHotel(BaseModel):
     property_link: str = ""
 
 
+class Restaurant(BaseModel):
+    name: str = ""
+    cuisine: str = ""
+    map_url: str | None = None
+
+
 class Location(BaseModel):
     name: str
     details: str = ""
@@ -108,6 +114,8 @@ class Location(BaseModel):
     things_to_do: list[str] = []
     suggested_days: int | float = 1
     map_url: str | None = None
+    lunch: Restaurant | None = None
+    dinner: Restaurant | None = None
 
 
 class ModelInfo(BaseModel):
