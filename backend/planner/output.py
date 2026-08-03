@@ -27,6 +27,19 @@ def render_text(results: dict) -> str:
             things = loc.get("things_to_do", [])
             for t in things:
                 lines.append(f"       - {t}")
+            weather_list = loc.get("weather", [])
+            if weather_list:
+                for w in weather_list:
+                    icon = w.get("icon", "")
+                    desc = w.get("description", "")
+                    t_max = w.get("temp_max")
+                    t_min = w.get("temp_min")
+                    unit = w.get("temp_unit", "°C")
+                    precip = w.get("precipitation_probability")
+                    temp_str = f"{t_min}–{t_max}{unit}" if t_min is not None and t_max is not None else ""
+                    precip_str = f" | rain {precip}%" if precip is not None else ""
+                    date_str = w.get("date", "")
+                    lines.append(f"     Weather ({date_str}): {icon} {desc} {temp_str}{precip_str}")
             lines.append("")
 
     flights = results.get("recommended_flights", [])
