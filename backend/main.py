@@ -10,10 +10,12 @@ if __package__ in (None, ""):
 from backend.flights import fetch_flights
 from backend.hotels import fetch_hotels
 from backend.restaurants import fetch_restaurants
+from backend.weather import distribute_weather, fetch_weather
 from backend.AI_model import get_client
 from backend.rag import learn_from_locations, retrieve_context
 from backend.planner import (
     collect_request, resolve_airport_code,
+    expand_locations_to_days,
     get_hotel_recommendations,
     get_recommendations,
     render_text,
@@ -117,6 +119,21 @@ def main() -> None:
                         }
             except Exception:
                 pass
+
+    # Expand locations so each day has exactly 1 location (splits multi-day locations)
+    results["locations"] = expand_locations_to_days(results.get("locations", []))
+
+    # Weather disabled for now — Open-Meteo only supports 16-day forecast.
+    # Re-enable when integrating with a bot chat closer to trip start date.
+    # try:
+    #     weather_days = fetch_weather(
+    #         req["destination"], req["start_date"], req["return_date"],
+    #         locations=results.get("locations", []),
+    #     )
+    #     distribute_weather(results.get("locations", []), weather_days, req["start_date"])
+    # except Exception:
+    #     pass
+
     results["model_info"] = client.info()
 
     save_text("recommendations.txt", render_text(results))

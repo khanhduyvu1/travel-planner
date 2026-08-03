@@ -107,6 +107,17 @@ class Restaurant(BaseModel):
     map_url: str | None = None
 
 
+class DayWeather(BaseModel):
+    date: str = ""
+    temp_max: int | float | None = None
+    temp_min: int | float | None = None
+    temp_unit: str = "°C"
+    precipitation_probability: int | float | None = None
+    weather_code: int = 0
+    description: str = ""
+    icon: str = ""
+
+
 class Location(BaseModel):
     name: str
     details: str = ""
@@ -116,6 +127,8 @@ class Location(BaseModel):
     map_url: str | None = None
     lunch: Restaurant | None = None
     dinner: Restaurant | None = None
+    weather: list[DayWeather] = []
+    day_label: str = ""
 
 
 class ModelInfo(BaseModel):

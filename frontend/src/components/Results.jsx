@@ -156,6 +156,8 @@ function HotelCard({ hotel, index }) {
 }
 
 function ItineraryCard({ location, flight, hotel, index }) {
+  const dayLabel = location?.day_label || `Day ${index + 1}`;
+
   return (
     <div className="bg-white rounded-xl border border-gray-200 shadow-sm overflow-hidden">
       <div className="bg-gradient-to-r from-indigo-50 to-sky-50 px-4 py-3 border-b border-gray-100">
@@ -165,11 +167,9 @@ function ItineraryCard({ location, flight, hotel, index }) {
           </span>
           {location?.name || "Day Plan"}
         </h3>
-        {location?.suggested_days && (
-          <p className="text-xs text-gray-500 mt-1 ml-7">
-            {location.suggested_days} {location.suggested_days === 1 ? "day" : "days"}
-          </p>
-        )}
+        <p className="text-xs text-indigo-600 font-medium mt-1 ml-7">
+          {dayLabel}
+        </p>
       </div>
 
       <div className="p-4 space-y-3">
@@ -195,6 +195,41 @@ function ItineraryCard({ location, flight, hotel, index }) {
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+
+        {/* Weather Section */}
+        {location?.weather?.length > 0 && (
+          <div className="border-t border-gray-100 pt-3 mt-3">
+            <p className="text-xs font-medium text-gray-700 mb-2 flex items-center gap-1.5">
+              <svg className="w-4 h-4 text-sky-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 15a4 4 0 004 4h9a5 5 0 10-.1-9.999 5.002 5.002 0 10-9.78 2.096A4.001 4.001 0 003 15z" />
+              </svg>
+              Weather Forecast
+            </p>
+            <div className="flex flex-wrap gap-2">
+              {location.weather.map((w, i) => (
+                <div key={i} className="bg-sky-50 rounded-lg px-3 py-2 flex items-center gap-2">
+                  <span className="text-lg">{w.icon}</span>
+                  <div>
+                    <p className="text-xs font-medium text-gray-700">{w.date}</p>
+                    <p className="text-xs text-gray-500">
+                      {w.description}
+                      {w.temp_min != null && w.temp_max != null && (
+                        <span className="ml-1">
+                          {w.temp_min}–{w.temp_max}{w.temp_unit}
+                        </span>
+                      )}
+                    </p>
+                    {w.precipitation_probability != null && (
+                      <p className="text-xs text-sky-600">
+                        💧 {w.precipitation_probability}%
+                      </p>
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
@@ -282,6 +317,11 @@ export default function Results({ data, onBack }) {
   const generatedProvider = data.model_info?.provider;
   const recommendedHotels = data.recommended_hotels || [];
 
+  // Deduplicate locations by name for the "Places to Visit" summary
+  const uniqueLocations = (data.locations || []).filter(
+    (loc, i, arr) => arr.findIndex((l) => l.name === loc.name) === i
+  );
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-sky-50 to-indigo-100 px-4 py-8">
       <div className="max-w-3xl mx-auto space-y-8">
@@ -341,7 +381,7 @@ export default function Results({ data, onBack }) {
         )}
 
         {/* Places to Visit */}
-        {data.locations?.length > 0 && (
+        {uniqueLocations.length > 0 && (
           <section>
             <h2 className="text-xl font-bold text-gray-900 mb-4 flex items-center gap-2">
               <svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -351,7 +391,7 @@ export default function Results({ data, onBack }) {
               Places to Visit
             </h2>
             <div className="grid gap-3">
-              {data.locations.map((loc, i) => (
+              {uniqueLocations.map((loc, i) => (
                 <LocationCard key={i} location={loc} index={i} />
               ))}
             </div>

@@ -29,5 +29,4 @@ output/
 backend/output/
 
 # Runtime RAG cache
-backend/knowledge_cache/*.json
-!backend/knowledge_cache/.gitkeep
+backend/knowledge_cache/

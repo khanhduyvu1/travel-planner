@@ -83,6 +83,31 @@ def _limit_locations(results: dict, limit: int = 8) -> None:
     ][:limit]
 
 
+def expand_locations_to_days(locations: list[dict]) -> list[dict]:
+    """Expand locations so each day has exactly 1 location.
+
+    If a location has suggested_days > 1, split it into multiple single-day entries.
+    This ensures weather maps 1:1 to each itinerary day.
+    """
+    expanded = []
+    for loc in locations:
+        if not isinstance(loc, dict):
+            continue
+        num_days = loc.get("suggested_days", 1)
+        if isinstance(num_days, (int, float)) and num_days > 1:
+            count = int(num_days)
+        else:
+            count = 1
+
+        for day_idx in range(count):
+            day_entry = dict(loc)
+            day_entry["suggested_days"] = 1
+            if count > 1:
+                day_entry["day_label"] = f"Day {day_idx + 1} of {count}"
+            expanded.append(day_entry)
+    return expanded
+
+
 def _format_locations_for_hotels(locations: list[dict]) -> str:
     lines = []
     for i, location in enumerate(locations, 1):

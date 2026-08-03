@@ -6,9 +6,11 @@ from fastapi import APIRouter, HTTPException
 from backend.flights import fetch_flights
 from backend.hotels import fetch_hotels
 from backend.restaurants import fetch_restaurants
+from backend.weather import distribute_weather, fetch_weather
 from backend.AI_model import LLMRateLimitError, get_client
 from backend.rag import learn_from_locations, retrieve_context
 from backend.planner import (
+    expand_locations_to_days,
     get_hotel_recommendations,
     resolve_airport_code,
     get_recommendations,
@@ -160,6 +162,20 @@ def get_recs(req: RecommendationRequest):
                         }
             except Exception:
                 pass
+
+    # Expand locations so each day has exactly 1 location (splits multi-day locations)
+    recs["locations"] = expand_locations_to_days(recs.get("locations", []))
+
+    # Weather disabled for now — Open-Meteo only supports 16-day forecast.
+    # Re-enable when integrating with a bot chat closer to trip start date.
+    # try:
+    #     weather_days = fetch_weather(
+    #         req.destination, req.start_date, req.return_date,
+    #         locations=recs.get("locations", []),
+    #     )
+    #     distribute_weather(recs.get("locations", []), weather_days, req.start_date)
+    # except Exception:
+    #     pass
 
     recommended_flights = recs.get("recommended_flights", [])
     if not flight_summary:
